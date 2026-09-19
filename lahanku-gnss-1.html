@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LAHANku — Ukur Luas GNSS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --hijau: #2d6a4f;
+    --hijau-muda: #40916c;
+    --hijau-terang: #52b788;
+    --krem: #f8f4ee;
+    --kuning: #f4a261;
+    --merah: #c1121f;
+    --abu: #6b705c;
+    --abu-muda: #e9e5dc;
+    --putih: #ffffff;
+    --teks: #1b1f16;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--krem);
+    color: var(--teks);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.aktif { display: flex; }
+
+  .header {
+    background: var(--hijau);
+    color: var(--putih);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-back {
+    background: none;
+    border: none;
+    color: var(--putih);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 6px 0 0;
+    line-height: 1;
+  }
+  .header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    flex: 1;
+  }
+  .header-badge {
+    background: var(--hijau-terang);
+    color: var(--putih);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+  }
+
+  #screen-menu {
+    background: var(--hijau);
+    justify-content: center;
+    align-items: center;
+    padding: 40px 24px;
+    gap: 0;
+  }
+  .menu-logo {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .menu-logo .brand {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--putih);
+    letter-spacing: -0.02em;
+  }
+  .menu-logo .brand span { color: var(--hijau-terang); }
+  .menu-logo .tagline {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    margin-top: 6px;
+  }
+  .menu-card {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: var(--shadow);
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1.5px solid transparent;
+  }
+  .menu-item:hover, .menu-item:active { background: var(--abu-muda); }
+  .menu-item .icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    background: var(--hijau);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .menu-item .label { flex: 1; }
+  .menu-item .label strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--teks);
+  }
+  .menu-item .label span {
+    display: block;
+    font-size: 12px;
+    color: var(--abu);
+    margin-top: 2px;
+  }
+  .menu-item .arrow { color: var(--abu); font-size: 16px; }
+
+  #screen-disclaimer .body { flex: 1; overflow-y: auto; padding: 20px 16px; }
+  .disclaimer-box {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .disclaimer-judul {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--merah);
+    margin-bottom: 14px;
+  }
+  .disclaimer-judul .ikon { font-size: 22px; }
+  .disclaimer-teks {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--teks);
+    margin-bottom: 14px;
+  }
+  .disclaimer-list {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--teks);
+    padding-left: 16px;
+    margin-bottom: 10px;
+  }
+  .disclaimer-list li { margin-bottom: 4px; }
+  .disclaimer-subjudul {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teks);
+    margin: 14px 0 6px;
+  }
+  .disclaimer-subjudul.merah { color: var(--merah); }
+  .disclaimer-footer {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--abu);
+    font-style: italic;
+    border-top: 1px solid var(--abu-muda);
+    padding-top: 14px;
+    margin-top: 4px;
+  }
+  .disclaimer-footer strong { color: var(--teks); font-style: normal; }
+  .btn-lanjut {
+    display: block;
+    width: 100%;
+    background: var(--hijau);
+    color: var(--putih);
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .btn-lanjut:active { background: var(--hijau-muda); }
+
+  #screen-peta { position: relative; height: 100vh; overflow: hidden; }
+  #map {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+    height: calc(100vh - 280px);
+  }
+  .peta-panel {
+    background: var(--putih);
+    border-top: 1px solid var(--abu-muda);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+  }
+  .gnss-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .gnss-card {
+    background: var(--krem);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .gnss-card .val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hijau);
+    display: block;
+  }
+  .gnss-card .ket {
+    font-size: 10px;
+    color: var(--abu);
+    margin-top: 2px;
+  }
+  .gnss-card.merah .val { color: var(--merah); }
+  .gnss-card.kuning .val { color: var(--kuning); }
+
+  .peta-aksi {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-ambil {
+    flex: 1;
+    background: var(--hijau);
+    color: var(--putih);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s;
+  }
+  .btn-ambil:disabled {
+    background: var(--abu-muda);
+    color: var(--abu);
+    cursor: not-allowed;
+  }
+  .btn-ambil:not(:disabled):active { background: var(--hijau-muda); }
+  .btn-selesai {
+    background: var(--kuning);
+    color: var(--putih);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-selesai:disabled {
+    background: var(--abu-muda);
+    color: var(--abu);
+    cursor: not-allowed;
+  }
+  .btn-selesai:not(:disabled):active { opacity: 0.85; }
+
+  .titik-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    min-height: 32px;
+    align-items: center;
+  }
+  .titik-strip::-webkit-scrollbar { height: 3px; }
+  .titik-strip::-webkit-scrollbar-thumb { background: var(--abu-muda); border-radius: 2px; }
+  .titik-chip {
+    background: var(--hijau-terang);
+    color: var(--putih);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    position: relative;
+  }
+  .titik-chip:active { opacity: 0.8; }
+  .titik-chip .hapus {
+    margin-left: 6px;
+    font-size: 11px;
+    opacity: 0.8;
+  }
+  .titik-label-empty {
+    font-size: 12px;
+    color: var(--abu);
+    font-style: italic;
+  }
+
+  #input-foto { display: none; }
+
+  .overlay-izin {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 24px;
+  }
+  .overlay-izin.hidden { display: none; }
+  .izin-box {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    max-width: 340px;
+    width: 100%;
+    text-align: center;
+  }
+  .izin-box .ikon { font-size: 48px; margin-bottom: 14px; }
+  .izin-box h2 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+  .izin-box p { font-size: 13px; color: var(--abu); line-height: 1.6; margin-bottom: 20px; }
+  .btn-izin {
+    background: var(--hijau);
+    color: var(--putih);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  #screen-hasil .body { flex: 1; overflow-y: auto; padding: 16px; }
+  .hasil-luas {
+    background: var(--hijau);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    color: var(--putih);
+    margin-bottom: 16px;
+  }
+  .hasil-luas .angka-m2 {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .hasil-luas .satuan { font-size: 14px; opacity: 0.75; margin-top: 2px; }
+  .hasil-luas .angka-ha {
+    font-size: 20px;
+    font-weight: 700;
+    margin-top: 10px;
+    color: var(--hijau-terang);
+  }
+  .hasil-luas .satuan-ha { font-size: 13px; opacity: 0.75; }
+
+  .titik-daftar {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .titik-daftar h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hijau);
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--abu-muda);
+  }
+  .titik-row {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--abu-muda);
+    align-items: flex-start;
+  }
+  .titik-row:last-child { border-bottom: none; }
+  .titik-no {
+    width: 28px;
+    height: 28px;
+    background: var(--hijau);
+    color: var(--putih);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .titik-info { flex: 1; }
+  .titik-info .koordinat {
+    font-size: 12px;
+    color: var(--teks);
+    font-family: monospace;
+    margin-bottom: 3px;
+  }
+  .titik-info .meta {
+    font-size: 11px;
+    color: var(--abu);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .titik-foto-thumb {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 7px;
+    flex-shrink: 0;
+    border: 1px solid var(--abu-muda);
+    cursor: pointer;
+  }
+  .titik-foto-none {
+    width: 52px;
+    height: 52px;
+    border-radius: 7px;
+    background: var(--abu-muda);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .form-simpan {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .form-simpan h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hijau);
+    margin-bottom: 12px;
+  }
+  .form-field { margin-bottom: 12px; }
+  .form-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--abu);
+    margin-bottom: 5px;
+  }
+  .form-field input, .form-field textarea {
+    width: 100%;
+    border: 1.5px solid var(--abu-muda);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--teks);
+    background: var(--krem);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-field input:focus, .form-field textarea:focus {
+    border-color: var(--hijau-terang);
+  }
+  .form-field textarea { resize: none; height: 70px; }
+
+  .btn-simpan {
+    display: block;
+    width: 100%;
+    background: var(--hijau);
+    color: var(--putih);
+    border: none;
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    margin-bottom: 10px;
+    transition: background 0.15s;
+  }
+  .btn-simpan:disabled { background: var(--abu-muda); color: var(--abu); cursor: not-allowed; }
+  .btn-simpan:not(:disabled):active { background: var(--hijau-muda); }
+  .btn-ulang {
+    display: block;
+    width: 100%;
+    background: none;
+    color: var(--abu);
+    border: 1.5px solid var(--abu-muda);
+    border-radius: var(--radius);
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s;
+    margin-bottom: 24px;
+  }
+  .btn-ulang:active { background: var(--abu-muda); }
+
+  .status-simpan {
+    background: var(--krem);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    color: var(--abu);
+    text-align: center;
+    margin-bottom: 10px;
+    display: none;
+  }
+  .status-simpan.sukses { background: #d8f3dc; color: var(--hijau); display: block; }
+  .status-simpan.error { background: #ffe0e0; color: var(--merah); display: block; }
+  .status-simpan.loading { background: var(--abu-muda); color: var(--abu); display: block; }
+
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(27,31,22,0.9);
+    color: var(--putih);
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 90vw;
+  }
+  .toast.tampil {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .modal-foto {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal-foto.hidden { display: none; }
+  .modal-foto img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px;
+  }
+  .modal-foto-tutup {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sumber-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 15000;
+    padding: 0;
+  }
+  .sumber-modal.hidden { display: none; }
+  .sumber-sheet {
+    background: var(--putih);
+    border-radius: 18px 18px 0 0;
+    padding: 20px 16px 32px;
+    width: 100%;
+    max-width: 480px;
+  }
+  .sumber-sheet h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--teks);
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .sumber-opsi {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .sumber-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--krem);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: left;
+    width: 100%;
+  }
+  .sumber-btn:active { background: var(--abu-muda); }
+  .sumber-btn.aktif { border-color: var(--hijau-terang); background: #edf7f1; }
+  .sumber-btn .sumber-ikon { font-size: 26px; flex-shrink: 0; }
+  .sumber-btn .sumber-label strong { display: block; font-size: 14px; font-weight: 700; color: var(--teks); }
+  .sumber-btn .sumber-label span { display: block; font-size: 12px; color: var(--abu); margin-top: 2px; }
+  .sumber-batal {
+    width: 100%;
+    background: none;
+    border: 1.5px solid var(--abu-muda);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--abu);
+    cursor: pointer;
+  }
+
+  .manual-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 16000;
+    padding: 24px;
+  }
+  .manual-modal.hidden { display: none; }
+  .manual-box {
+    background: var(--putih);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .manual-box h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--teks);
+    margin-bottom: 6px;
+  }
+  .manual-box .sub {
+    font-size: 12px;
+    color: var(--abu);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .manual-field { margin-bottom: 12px; }
+  .manual-field label { display: block; font-size: 12px; font-weight: 600; color: var(--abu); margin-bottom: 5px; }
+  .manual-field input {
+    width: 100%;
+    border: 1.5px solid var(--abu-muda);
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 15px;
+    font-family: monospace;
+    color: var(--teks);
+    background: var(--krem);
+    outline: none;
+  }
+  .manual-field input:focus { border-color: var(--hijau-terang); }
+  .manual-aksi { display: flex; gap: 8px; margin-top: 4px; }
+  .btn-manual-ok {
+    flex: 1;
+    background: var(--hijau);
+    color: var(--putih);
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-manual-batal {
+    background: none;
+    border: 1.5px solid var(--abu-muda);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-size: 14px;
+    color: var(--abu);
+    cursor: pointer;
+  }
+
+  .sumber-indikator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--abu);
+    padding: 4px 0 0;
+  }
+  .sumber-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--abu-muda);
+    flex-shrink: 0;
+  }
+  .sumber-dot.gnss { background: var(--hijau-terang); }
+  .sumber-dot.manual { background: var(--kuning); }
+</style>
+</head>
+<body>
+
+<section id="screen-menu" class="screen aktif">
+  <div class="menu-logo">
+    <div class="brand">LAHAN<span>ku</span></div>
+    <div class="tagline">Aplikasi Manajemen Lahan Sawit</div>
+  </div>
+  <div class="menu-card">
+    <div class="menu-item" onclick="keHalaman('screen-disclaimer')">
+      <div class="icon">📡</div>
+      <div class="label">
+        <strong>Ukur Luas via GNSS</strong>
+        <span>GPS HP, RTK Bluetooth, atau input manual</span>
+      </div>
+      <div class="arrow">›</div>
+    </div>
+  </div>
+</section>
+<section id="screen-disclaimer" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="keHalaman('screen-menu')">‹</button>
+    <h1>Ukur Luas via GNSS</h1>
+  </div>
+  <div class="body">
+    <div class="disclaimer-box">
+      <div class="disclaimer-judul">
+        <span class="ikon">⚠️</span>
+        <span>PENTING — BACA SEBELUM MENGUKUR</span>
+      </div>
+
+      <p class="disclaimer-teks">
+        Pengukuran ini jika menggunakan receiver GNSS yang terdapat pada HP, bukan perangkat GPS/RTK survei. Posisi yang diterima HP dapat mengalami penyimpangan beberapa meter dan dalam kondisi tertentu dapat lebih besar. Karena itu, hasil luas yang ditampilkan hanya merupakan <strong>perkiraan/estimasi</strong> dan bukan hasil pengukuran survei dengan ketelitian tinggi.
+      </p>
+
+      <p class="disclaimer-subjudul">Gunakan hasil ini untuk:</p>
+      <ul class="disclaimer-list">
+        <li>Memperkirakan luas lahan</li>
+        <li>Membantu perencanaan kebun</li>
+        <li>Memperkirakan kebutuhan tanaman, pupuk, atau pekerjaan lapangan</li>
+      </ul>
+
+      <p class="disclaimer-subjudul merah">Jangan gunakan hasil ini, jika menggunakan receiver GNSS HP sebagai:</p>
+      <ul class="disclaimer-list">
+        <li>Penentuan batas kepemilikan tanah</li>
+        <li>Pengukuran untuk keperluan hukum</li>
+        <li>Patokan pekerjaan konstruksi</li>
+        <li>Pengukuran yang membutuhkan ketelitian survei</li>
+      </ul>
+
+      <p class="disclaimer-teks" style="margin-top:14px;">
+        Semakin buruk penerimaan sinyal GNSS, semakin besar kemungkinan penyimpangan posisi dan hasil luas.
+      </p>
+
+      <div class="disclaimer-footer">
+        Dengan menekan <strong>"Saya Mengerti &amp; Lanjutkan"</strong>, Anda memahami bahwa hasil yang diberikan LAHANku adalah estimasi berdasarkan GNSS HP dan dapat berbeda dari hasil pengukuran menggunakan perangkat survei/RTK.
+      </div>
+    </div>
+
+    <button class="btn-lanjut" onclick="mulaiPeta()">✅ Saya Mengerti &amp; Lanjutkan</button>
+  </div>
+</section>
+<section id="screen-peta" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="konfirmasiKeluar()">‹</button>
+    <h1>Ambil Titik Batas Lahan</h1>
+    <span class="header-badge" id="badge-titik">0 titik</span>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="peta-panel">
+    <div class="titik-strip" id="titik-strip">
+      <span class="titik-label-empty" id="titik-empty-label">Belum ada titik — tekan "Ambil Titik"</span>
+    </div>
+    <div class="gnss-info">
+      <div class="gnss-card" id="card-lat">
+        <span class="val" id="val-lat">—</span>
+        <div class="ket">Lintang</div>
+      </div>
+      <div class="gnss-card" id="card-lng">
+        <span class="val" id="val-lng">—</span>
+        <div class="ket">Bujur</div>
+      </div>
+      <div class="gnss-card" id="card-acc">
+        <span class="val" id="val-acc">—</span>
+        <div class="ket">Akurasi (m)</div>
+      </div>
+    </div>
+  <div class="sumber-indikator">
+      <div class="sumber-dot gnss" id="sumber-dot"></div>
+      <span id="sumber-label-info">Sumber: GNSS HP</span>
+      <button onclick="bukaSumberModal()" style="margin-left:auto;background:none;border:1px solid var(--abu-muda);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--abu);cursor:pointer;">Ganti</button>
+    </div>
+    <div class="peta-aksi">
+      <button class="btn-ambil" id="btn-ambil" disabled onclick="ambilTitik()">
+        📍 Ambil Titik + Foto
+      </button>
+      <button class="btn-selesai" id="btn-selesai" disabled onclick="selesaiUkur()">
+        ✅ Selesai
+      </button>
+    </div>
+  </div>
+</section>
+<section id="screen-hasil" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="keHalaman('screen-peta')">‹</button>
+    <h1>Hasil Pengukuran</h1>
+  </div>
+  <div class="body">
+
+    <!-- Luas -->
+    <div class="hasil-luas">
+      <div class="angka-m2" id="res-m2">0</div>
+      <div class="satuan">meter persegi (m²)</div>
+      <div class="angka-ha" id="res-ha">0</div>
+      <div class="satuan-ha">hektare (Ha)</div>
+    </div>
+
+    <!-- Daftar titik -->
+    <div class="titik-daftar">
+      <h3>📌 Data Titik Ukur</h3>
+      <div id="daftar-titik-hasil"></div>
+    </div>
+
+    <!-- Form simpan ke GAS -->
+    <div class="form-simpan">
+      <h3>💾 Simpan ke Data Lahan</h3>
+      <div class="form-field">
+        <label>Nama Pemilik Lahan</label>
+        <input type="text" id="input-pemilik" placeholder="Contoh: Bapak Ahmad">
+      </div>
+      <div class="form-field">
+        <label>Nama / Kode Blok Lahan</label>
+        <input type="text" id="input-blok" placeholder="Contoh: Blok A, Kebun Utara">
+      </div>
+      <div class="form-field">
+        <label>Catatan (opsional)</label>
+        <textarea id="input-catatan" placeholder="Kondisi lahan, keterangan tambahan..."></textarea>
+      </div>
+    </div>
+
+    <div class="status-simpan" id="status-simpan"></div>
+
+    <button class="btn-simpan" id="btn-simpan" onclick="simpanKeGAS()">
+      💾 Simpan Hasil ke GAS
+    </button>
+    <button class="btn-ulang" onclick="ulangPengukuran()">
+      🔄 Mulai Pengukuran Baru
+    </button>
+
+  </div>
+</section>
+    <!-- Modal pilih sumber GNSS -->
+<div class="sumber-modal hidden" id="sumber-modal">
+  <div class="sumber-sheet">
+    <h3>🛰️ Pilih Sumber Koordinat</h3>
+    <div class="sumber-opsi">
+      <button class="sumber-btn" id="opsi-gnss" onclick="pilihSumber('gnss')">
+        <span class="sumber-ikon">📱</span>
+        <span class="sumber-label">
+          <strong>GNSS HP</strong>
+          <span>Gunakan GPS bawaan HP secara otomatis</span>
+        </span>
+      </button>
+      <button class="sumber-btn" id="opsi-rtk" onclick="pilihSumber('rtk')">
+        <span class="sumber-ikon">🔵</span>
+        <span class="sumber-label">
+          <strong>RTK via Bluetooth / Mock GPS</strong>
+          <span>Pasang app "Bluetooth GPS" di HP, hubungkan receiver RTK, lalu pilih opsi ini</span>
+        </span>
+      </button>
+      <button class="sumber-btn" id="opsi-manual" onclick="pilihSumber('manual')">
+        <span class="sumber-ikon">⌨️</span>
+        <span class="sumber-label">
+          <strong>Input Koordinat Manual</strong>
+          <span>Baca koordinat dari layar receiver RTK, ketik langsung</span>
+        </span>
+      </button>
+    </div>
+    <button class="sumber-batal" onclick="tutupSumberModal()">Batal</button>
+  </div>
+</div>
+
+<!-- Modal input koordinat manual -->
+<div class="manual-modal hidden" id="manual-modal">
+  <div class="manual-box">
+    <h3>⌨️ Input Koordinat Manual</h3>
+    <p class="sub">Baca koordinat dari layar receiver RTK Anda, kemudian ketikkan di bawah ini. Format desimal (contoh: -2.123456)</p>
+    <div class="manual-field">
+      <label>Lintang (Latitude)</label>
+      <input type="number" id="manual-lat" placeholder="-2.123456" step="0.000001" inputmode="decimal">
+    </div>
+    <div class="manual-field">
+      <label>Bujur (Longitude)</label>
+      <input type="number" id="manual-lng" placeholder="117.123456" step="0.000001" inputmode="decimal">
+    </div>
+    <div class="manual-field">
+      <label>Akurasi (m) — opsional</label>
+      <input type="number" id="manual-acc" placeholder="0.02" step="0.01" inputmode="decimal">
+    </div>
+    <div class="manual-aksi">
+      <button class="btn-manual-batal" onclick="tutupManualModal()">Batal</button>
+      <button class="btn-manual-ok" onclick="konfirmasiManual()">📍 Ambil Titik + Foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Input foto tersembunyi -->
+<input type="file" id="input-foto" accept="image/*" capture="environment">
+
+<!-- Overlay izin lokasi -->
+<div class="overlay-izin hidden" id="overlay-izin">
+  <div class="izin-box">
+    <div class="ikon" id="izin-ikon">📡</div>
+    <h2 id="izin-judul">Izinkan Akses Lokasi</h2>
+    <p id="izin-pesan">LAHANku memerlukan akses GPS/GNSS untuk mendeteksi posisi Anda di lapangan. Tekan tombol di bawah lalu izinkan saat browser meminta.</p>
+    <button class="btn-izin" id="btn-izin-aksi" onclick="mintaIzinLokasi()">Izinkan Lokasi</button>
+    <div id="izin-panduan" style="display:none;margin-top:14px;font-size:12px;color:#6b705c;line-height:1.6;text-align:left;background:#f8f4ee;border-radius:8px;padding:12px;">
+      <strong>Cara mengizinkan lokasi:</strong><br>
+      1. Ketuk ikon 🔒 atau ⓘ di address bar browser<br>
+      2. Pilih <em>Izin Situs</em> atau <em>Site Settings</em><br>
+      3. Ubah Lokasi menjadi <em>Izinkan</em><br>
+      4. Muat ulang halaman ini
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-foto hidden" id="modal-foto">
+  <button class="modal-foto-tutup" onclick="tutupFoto()">✕</button>
+  <img id="modal-foto-img" src="" alt="Foto titik">
+</div>
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyOCdaQpq9GPKr8GXZU2YpA3bxfLiMbXLaHu95ZGUMwuVZLyzf3-voHznRklEePODVFJQ/exec'
+
+let titikList = [];
+let posisiSaat = null;
+let watchId = null;
+let petaObj = null;
+let markersLayer = null;
+let polygonLayer = null;
+let posisiMarker = null;
+let titikPending = null;
+let sumberAktif = 'gnss'; 
+  function bukaSumberModal() {
+  document.querySelectorAll('.sumber-btn').forEach(b => b.classList.remove('aktif'));
+  document.getElementById('opsi-' + sumberAktif).classList.add('aktif');
+  document.getElementById('sumber-modal').classList.remove('hidden');
+}
+
+function tutupSumberModal() {
+  document.getElementById('sumber-modal').classList.add('hidden');
+}
+
+function pilihSumber(sumber) {
+  sumberAktif = sumber;
+  tutupSumberModal();
+
+  const dot = document.getElementById('sumber-dot');
+  const label = document.getElementById('sumber-label-info');
+  const btnAmbil = document.getElementById('btn-ambil');
+
+  dot.className = 'sumber-dot';
+
+  if (sumber === 'gnss') {
+    dot.classList.add('gnss');
+    label.textContent = 'Sumber: GNSS HP';
+    btnAmbil.textContent = '📍 Ambil Titik + Foto';
+    btnAmbil.disabled = !posisiSaat;
+    if (!watchId) mulaiWatch();
+    tampilToast('Sumber: GNSS HP aktif');
+
+  } else if (sumber === 'rtk') {
+    dot.classList.add('gnss');
+    label.textContent = 'Sumber: RTK via Bluetooth';
+    btnAmbil.textContent = '📍 Ambil Titik + Foto';
+    btnAmbil.disabled = !posisiSaat;
+    if (!watchId) mulaiWatch();
+    tampilToast('Pastikan Mock GPS aktif & terhubung ke receiver RTK');
+
+  } else if (sumber === 'manual') {
+    dot.classList.add('manual');
+    label.textContent = 'Sumber: Input Manual';
+    btnAmbil.textContent = '⌨️ Input Koordinat';
+    btnAmbil.disabled = false;
+    tampilToast('Mode input manual aktif');
+  }
+}
+
+function bukaManualModal() {
+  document.getElementById('manual-lat').value = '';
+  document.getElementById('manual-lng').value = '';
+  document.getElementById('manual-acc').value = '';
+  document.getElementById('manual-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('manual-lat').focus(), 100);
+}
+
+function tutupManualModal() {
+  document.getElementById('manual-modal').classList.add('hidden');
+  titikPending = null;
+}
+
+function konfirmasiManual() {
+  const lat = parseFloat(document.getElementById('manual-lat').value);
+  const lng = parseFloat(document.getElementById('manual-lng').value);
+  const accRaw = document.getElementById('manual-acc').value;
+  const acc = accRaw ? parseFloat(accRaw) : 0;
+
+  if (isNaN(lat) || lat < -90 || lat > 90) {
+    tampilToast('Lintang tidak valid (contoh: -2.123456)');
+    return;
+  }
+  if (isNaN(lng) || lng < -180 || lng > 180) {
+    tampilToast('Bujur tidak valid (contoh: 117.123456)');
+    return;
+  }
+
+  titikPending = {
+    lat, lng, acc,
+    waktu: new Date().toLocaleString('id-ID')
+  };
+
+  document.getElementById('manual-modal').classList.add('hidden');
+
+  // Update posisi marker di peta
+  if (!posisiMarker) {
+    posisiMarker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#f4a261', fillColor: '#f4a261',
+      fillOpacity: 0.9, weight: 2
+    }).addTo(petaObj);
+  } else {
+    posisiMarker.setLatLng([lat, lng]);
+  }
+  petaObj.setView([lat, lng], petaObj.getZoom() < 15 ? 17 : petaObj.getZoom());
+
+  document.getElementById('val-lat').textContent = lat.toFixed(6);
+  document.getElementById('val-lng').textContent = lng.toFixed(6);
+  document.getElementById('val-acc').textContent = acc > 0 ? acc.toFixed(2) : '—';
+
+  document.getElementById('input-foto').click();
+}
+
+function keHalaman(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('aktif'));
+  document.getElementById(id).classList.add('aktif');
+  window.scrollTo(0, 0);
+  if (id === 'screen-peta' && petaObj) {
+    setTimeout(() => petaObj.invalidateSize(), 200);
+  }
+}
+
+function mulaiPeta() {
+  keHalaman('screen-peta');
+  if (!petaObj) inisialisasiPeta();
+  setOverlayIzin('minta');
+  document.getElementById('overlay-izin').classList.remove('hidden');
+}
+
+function inisialisasiPeta() {
+  petaObj = L.map('map', {
+    center: [-2.5, 117.5],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: true
+  });
+
+  const tileSatelit = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 20, attribution: '© Esri' }
+  );
+
+  const tileOSM = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '© OpenStreetMap' }
+  );
+
+  tileSatelit.addTo(petaObj);
+
+  // Jika tile satelit error, pakai OSM
+  tileSatelit.on('tileerror', function() {
+    if (!petaObj.hasLayer(tileOSM)) {
+      petaObj.removeLayer(tileSatelit);
+      tileOSM.addTo(petaObj);
+      tampilToast('Peta satelit gagal, beralih ke peta dasar');
+    }
+  });
+
+  markersLayer = L.layerGroup().addTo(petaObj);
+
+  // Resize peta setelah screen aktif
+  setTimeout(() => petaObj.invalidateSize(), 300);
+}
+
+function setOverlayIzin(mode) {
+  const ikon  = document.getElementById('izin-ikon');
+  const judul = document.getElementById('izin-judul');
+  const pesan = document.getElementById('izin-pesan');
+  const btn   = document.getElementById('btn-izin-aksi');
+  const panduan = document.getElementById('izin-panduan');
+
+  if (mode === 'minta') {
+    ikon.textContent  = '📡';
+    judul.textContent = 'Izinkan Akses Lokasi';
+    pesan.textContent = 'LAHANku memerlukan akses GPS/GNSS untuk mendeteksi posisi Anda di lapangan. Tekan tombol di bawah lalu izinkan saat browser meminta.';
+    btn.textContent   = 'Izinkan Lokasi';
+    btn.onclick       = mintaIzinLokasi;
+    btn.style.background = 'var(--hijau)';
+    panduan.style.display = 'none';
+
+  } else if (mode === 'menunggu') {
+    ikon.textContent  = '⏳';
+    judul.textContent = 'Mendeteksi Posisi...';
+    pesan.textContent = 'Mohon tunggu, sedang membaca sinyal GNSS dari satelit.';
+    btn.textContent   = 'Menunggu...';
+    btn.onclick       = null;
+    btn.style.background = 'var(--abu)';
+    panduan.style.display = 'none';
+
+  } else if (mode === 'ditolak') {
+    ikon.textContent  = '🚫';
+    judul.textContent = 'Akses Lokasi Ditolak';
+    pesan.textContent = 'Browser memblokir akses lokasi. Ikuti langkah berikut untuk mengizinkan:';
+    btn.textContent   = 'Coba Lagi';
+    btn.onclick       = mintaIzinLokasi;
+    btn.style.background = 'var(--kuning)';
+    panduan.style.display = 'block';
+
+  } else if (mode === 'tidak-didukung') {
+    ikon.textContent  = '❌';
+    judul.textContent = 'GNSS Tidak Didukung';
+    pesan.textContent = 'Browser atau perangkat ini tidak mendukung GPS/GNSS. Gunakan browser Chrome terbaru di HP Android.';
+    btn.textContent   = 'Tutup';
+    btn.onclick       = () => document.getElementById('overlay-izin').classList.add('hidden');
+    btn.style.background = 'var(--merah)';
+    panduan.style.display = 'none';
+  }
+}
+
+function mintaIzinLokasi() {
+  if (!navigator.geolocation) {
+    document.getElementById('overlay-izin').classList.remove('hidden');
+    setOverlayIzin('tidak-didukung');
+    return;
+  }
+
+  document.getElementById('overlay-izin').classList.remove('hidden');
+  setOverlayIzin('menunggu');
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('overlay-izin').classList.add('hidden');
+      mulaiWatch();
+      petaObj.setView([pos.coords.latitude, pos.coords.longitude], 17);
+    },
+    (err) => {
+      setOverlayIzin('ditolak');
+    },
+    { enableHighAccuracy: true, timeout: 15000 }
+  );
+}
+
+function mulaiWatch() {
+  if (watchId !== null) return;
+  watchId = navigator.geolocation.watchPosition(
+    updatePosisi,
+    (err) => { tampilToast('Sinyal GNSS lemah...'); },
+    { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+  );
+}
+
+function updatePosisi(pos) {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const acc = pos.coords.accuracy;
+
+  posisiSaat = { lat, lng, acc };
+
+  document.getElementById('val-lat').textContent = lat.toFixed(6);
+  document.getElementById('val-lng').textContent = lng.toFixed(6);
+  document.getElementById('val-acc').textContent = acc.toFixed(1);
+
+  const cardAcc = document.getElementById('card-acc');
+  cardAcc.className = 'gnss-card';
+  if (acc <= 5) cardAcc.classList.add('hijau');
+  else if (acc <= 15) cardAcc.classList.add('kuning');
+  else cardAcc.classList.add('merah');
+
+  if (!posisiMarker) {
+    posisiMarker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#2d6a4f', fillColor: '#52b788',
+      fillOpacity: 0.9, weight: 2
+    }).addTo(petaObj);
+  } else {
+    posisiMarker.setLatLng([lat, lng]);
+  }
+
+  document.getElementById('btn-ambil').disabled = false;
+}
+
+function ambilTitik() {
+  if (sumberAktif === 'manual') {
+    bukaManualModal();
+    return;
+  }
+  if (!posisiSaat) { tampilToast('Tunggu sinyal GNSS...'); return; }
+
+  titikPending = {
+    lat: posisiSaat.lat,
+    lng: posisiSaat.lng,
+    acc: posisiSaat.acc,
+    waktu: new Date().toLocaleString('id-ID')
+  };
+
+  document.getElementById('input-foto').click();
+}
+
+document.getElementById('input-foto').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file || !titikPending) return;
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    titikPending.fotoBase64 = ev.target.result;
+    simpanTitik(titikPending);
+    titikPending = null;
+    e.target.value = '';
+  };
+  reader.readAsDataURL(file);
+});
+
+function simpanTitik(titik) {
+  titikList.push(titik);
+  const no = titikList.length;
+
+  // Marker di peta
+  const marker = L.circleMarker([titik.lat, titik.lng], {
+    radius: 7, color: '#ffffff', fillColor: '#2d6a4f',
+    fillOpacity: 1, weight: 2
+  }).addTo(markersLayer);
+
+  const labelIcon = L.divIcon({
+    html: `<div style="background:#2d6a4f;color:#fff;border-radius:12px;padding:2px 7px;font-size:11px;font-weight:700;white-space:nowrap;">T${no}</div>`,
+    className: '', iconAnchor: [-4, 10]
+  });
+  L.marker([titik.lat, titik.lng], { icon: labelIcon }).addTo(markersLayer);
+
+  renderTitikStrip();
+  updatePolygon();
+
+  // Badge
+  document.getElementById('badge-titik').textContent = `${no} titik`;
+
+  // Aktifkan selesai jika ≥ 3 titik
+  document.getElementById('btn-selesai').disabled = (titikList.length < 3);
+
+  tampilToast(`✅ Titik ${no} tersimpan`);
+}
+
+function renderTitikStrip() {
+  const strip = document.getElementById('titik-strip');
+  const emptyLabel = document.getElementById('titik-empty-label');
+
+  if (titikList.length === 0) {
+    emptyLabel.style.display = '';
+    strip.querySelectorAll('.titik-chip').forEach(c => c.remove());
+    return;
+  }
+  emptyLabel.style.display = 'none';
+  strip.querySelectorAll('.titik-chip').forEach(c => c.remove());
+
+  titikList.forEach((t, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'titik-chip';
+    chip.innerHTML = `T${i+1}<span class="hapus" onclick="hapusTitik(${i})">✕</span>`;
+    strip.appendChild(chip);
+  });
+}
+
+function hapusTitik(idx) {
+  titikList.splice(idx, 1);
+  markersLayer.clearLayers();
+  titikList.forEach((t, i) => {
+    L.circleMarker([t.lat, t.lng], {
+      radius: 7, color: '#ffffff', fillColor: '#2d6a4f', fillOpacity: 1, weight: 2
+    }).addTo(markersLayer);
+    const labelIcon = L.divIcon({
+      html: `<div style="background:#2d6a4f;color:#fff;border-radius:12px;padding:2px 7px;font-size:11px;font-weight:700;">T${i+1}</div>`,
+      className: '', iconAnchor: [-4, 10]
+    });
+    L.marker([t.lat, t.lng], { icon: labelIcon }).addTo(markersLayer);
+  });
+  renderTitikStrip();
+  updatePolygon();
+  document.getElementById('badge-titik').textContent = `${titikList.length} titik`;
+  document.getElementById('btn-selesai').disabled = (titikList.length < 3);
+  tampilToast(`Titik ${idx+1} dihapus`);
+}
+
+function updatePolygon() {
+  if (polygonLayer) { petaObj.removeLayer(polygonLayer); polygonLayer = null; }
+  if (titikList.length < 3) return;
+
+  const coords = titikList.map(t => [t.lat, t.lng]);
+  polygonLayer = L.polygon(coords, {
+    color: '#f4a261', fillColor: '#f4a261', fillOpacity: 0.15, weight: 2, dashArray: '6,4'
+  }).addTo(petaObj);
+}
+
+function hitungLuasPolygon(titikArr) {
+  if (titikArr.length < 3) return 0;
+
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+
+  let area = 0;
+  const n = titikArr.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const xi = toRad(titikArr[i].lng) * Math.cos(toRad(titikArr[i].lat)) * R;
+    const yi = toRad(titikArr[i].lat) * R;
+    const xj = toRad(titikArr[j].lng) * Math.cos(toRad(titikArr[j].lat)) * R;
+    const yj = toRad(titikArr[j].lat) * R;
+    area += xi * yj - xj * yi;
+  }
+  return Math.abs(area / 2);
+}
+
+function selesaiUkur() {
+  if (titikList.length < 3) { tampilToast('Minimal 3 titik diperlukan'); return; }
+
+  const luas = hitungLuasPolygon(titikList);
+  const ha = luas / 10000;
+
+  document.getElementById('res-m2').textContent = Math.round(luas).toLocaleString('id-ID');
+  document.getElementById('res-ha').textContent = ha.toFixed(4);
+
+  renderHasilTitik();
+  keHalaman('screen-hasil');
+}
+
+function renderHasilTitik() {
+  const container = document.getElementById('daftar-titik-hasil');
+  container.innerHTML = '';
+
+  titikList.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'titik-row';
+
+    const foto = t.fotoBase64
+      ? `<img class="titik-foto-thumb" src="${t.fotoBase64}" alt="Foto T${i+1}" onclick="lihatFoto('${t.fotoBase64}')">`
+      : `<div class="titik-foto-none">📷</div>`;
+
+    row.innerHTML = `
+      <div class="titik-no">${i+1}</div>
+      <div class="titik-info">
+        <div class="koordinat">${t.lat.toFixed(7)}, ${t.lng.toFixed(7)}</div>
+        <div class="meta">
+          <span>${t.acc > 0 ? '±' + t.acc.toFixed(1) + ' m' : 'Manual'}</span>
+          <span>${t.waktu}</span>
+        </div>
+      </div>
+      ${foto}
+    `;
+    container.appendChild(row);
+  });
+}
+
+function simpanKeGAS() {
+  const pemilik = document.getElementById('input-pemilik').value.trim();
+  const blok = document.getElementById('input-blok').value.trim();
+  const catatan = document.getElementById('input-catatan').value.trim();
+
+  if (!pemilik) { tampilToast('Nama pemilik wajib diisi'); return; }
+  if (!blok) { tampilToast('Nama/kode blok wajib diisi'); return; }
+
+  const luas = hitungLuasPolygon(titikList);
+  const ha = luas / 10000;
+
+  const payload = {
+    aksi: 'simpanGNSS',
+    pemilik,
+    blok,
+    catatan,
+    luasM2: Math.round(luas),
+    luasHa: ha.toFixed(4),
+    jumlahTitik: titikList.length,
+    waktuUkur: new Date().toLocaleString('id-ID'),
+    titik: titikList.map(t => ({
+      lat: t.lat,
+      lng: t.lng,
+      acc: t.acc,
+      waktu: t.waktu
+    }))
+  };
+
+  const statusEl = document.getElementById('status-simpan');
+  const btnSimpan = document.getElementById('btn-simpan');
+
+  statusEl.className = 'status-simpan loading';
+  statusEl.textContent = '⏳ Menyimpan data ke server...';
+  btnSimpan.disabled = true;
+
+  if (GAS_URL === 'GANTI_DENGAN_URL_GAS_ANDA') {
+    setTimeout(() => {
+      statusEl.className = 'status-simpan error';
+      statusEl.textContent = '⚠️ URL GAS belum dikonfigurasi. Set variabel GAS_URL di kode.';
+      btnSimpan.disabled = false;
+    }, 800);
+    return;
+  }
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(() => {
+    statusEl.className = 'status-simpan sukses';
+    statusEl.textContent = '✅ Data berhasil disimpan ke Google Sheets!';
+    btnSimpan.disabled = true;
+    tampilToast('Data tersimpan!');
+  })
+  .catch(err => {
+    statusEl.className = 'status-simpan error';
+    statusEl.textContent = '❌ Gagal menyimpan. Periksa koneksi internet.';
+    btnSimpan.disabled = false;
+  });
+}
+
+function ulangPengukuran() {
+  titikList = [];
+  titikPending = null;
+  if (markersLayer) markersLayer.clearLayers();
+  if (polygonLayer) { petaObj.removeLayer(polygonLayer); polygonLayer = null; }
+  renderTitikStrip();
+  document.getElementById('badge-titik').textContent = '0 titik';
+  document.getElementById('btn-selesai').disabled = true;
+  document.getElementById('btn-ambil').disabled = false;
+  document.getElementById('status-simpan').className = 'status-simpan';
+  document.getElementById('btn-simpan').disabled = false;
+  document.getElementById('input-pemilik').value = '';
+  document.getElementById('input-blok').value = '';
+  document.getElementById('input-catatan').value = '';
+  keHalaman('screen-peta');
+}
+
+function konfirmasiKeluar() {
+  if (titikList.length > 0) {
+    if (!confirm(`Ada ${titikList.length} titik yang belum disimpan. Keluar dan buang data?`)) return;
+  }
+  ulangPengukuran();
+  keHalaman('screen-menu');
+}
+
+function lihatFoto(src) {
+  document.getElementById('modal-foto-img').src = src;
+  document.getElementById('modal-foto').classList.remove('hidden');
+}
+function tutupFoto() {
+  document.getElementById('modal-foto').classList.add('hidden');
+  document.getElementById('modal-foto-img').src = '';
+}
+let toastTimer = null;
+function tampilToast(pesan) {
+  const el = document.getElementById('toast');
+  el.textContent = pesan;
+  el.classList.add('tampil');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('tampil'), 2500);
+}
+</script>
+</body>
+</html>
